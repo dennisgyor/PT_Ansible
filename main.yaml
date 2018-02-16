@@ -1,0 +1,57 @@
+---
+- hosts: all
+  remote_user: pi
+  vars:
+    dl_dir: "/tmp"
+    install_loc: "/home/pi/ProfitTrailer/"
+    release: "https://github.com/taniman/profit-trailer/releases/download/v1.2.6.16/ProfitTrailer.zip"
+
+  tasks:
+    - name: Download and unzip the release in the /tmp directory
+      unarchive:
+        src: "{{ release }}"
+        dest: "{{ dl_dir }}"
+        remote_src: yes
+        list_files: yes
+      register: dl_success
+
+    - debug:
+        msg="ProfitTrailer release downloaded successfully"
+      when: dl_success|changed
+
+    - name: Copy the new release into the ProfitTrailer directory
+      command: cp "{{ dl_success.dest }}/ProfitTrailer/ProfitTrailer.jar" "{{ install_loc }}"
+
+    - name: Check for running ProfitTrailer process
+      shell: ps aux | grep -v grep | grep -i profittrailer
+      register: pt_run
+      failed_when: pt_run.rc == 2
+
+    - name: Start up ProfitTrailer process if not running
+      shell: "nohup /home/pi/ProfitTrailer/java -jar ProfitTrailer.jar -XX:+UseConcMarkSweepGC -Xmx512m -Xms512m &"
+      when: pt_run.rc != 0
+
+    - block:
+      - name: List and register files in /tmp directory
+        find:
+          paths: "{{ dl_dir }}/ProfitTrailer"
+          hidden: True
+          recurse: True
+        register: list_files
+
+      - name: List and register directories in the /tmp directory
+        find:
+          paths: "{{ dl_dir }}/ProfitTrailer"
+          hidden: True
+          recurse: True
+          file_type: directory
+        register: list_directories
+
+      - name: rm files and directories from the /tmp directory
+        file:
+          path: "{{ item.path }}"
+          state: absent
+        with_items: >
+          {{
+            list_files.files + list_directories.files
+          }}
