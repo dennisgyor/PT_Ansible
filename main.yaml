@@ -1,10 +1,12 @@
 ---
 - hosts: all
-  remote_user: pi
+
   vars:
     dl_dir: "/tmp"
-    install_loc: "/home/pi/ProfitTrailer/"
+    install_loc: "/home/{{ user }}/ProfitTrailer/"
     release: "https://github.com/taniman/profit-trailer/releases/download/v1.2.6.16/ProfitTrailer.zip"
+    user: pi
+  remote_user: "{{ user }}"
 
   tasks:
     - name: Download and unzip the release in the /tmp directory
